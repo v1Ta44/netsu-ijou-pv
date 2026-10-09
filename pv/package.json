@@ -1,0 +1,23 @@
+{
+  "name": "pv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts NetsuIjou out/pv.mp4 --concurrency=8 --gl=angle --crf=18",
+    "typecheck": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@remotion/cli": "4.0.355",
+    "@types/react": "18.3.12",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.355",
+    "typescript": "5.6.3"
+  }
+}

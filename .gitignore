@@ -1,0 +1,24 @@
+# deps / build
+node_modules/
+__pycache__/
+*.pyc
+
+# renders and scratch
+pv/out/
+.scratch/
+*.log
+
+# copyrighted source material (supply locally, see README)
+assets/audio/
+pv/public/netsu_ijou.mp4
+assets/ref/
+足立レイ_立ち絵RF_1920_v3/
+足立レイ_立ち絵RF_1920_v3.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.claude/

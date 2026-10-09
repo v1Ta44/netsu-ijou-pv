@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>熱異常 · 歌词时间轴编辑器</title>
+<style>
+  :root { --bg:#05070A; --fg:#d8e0e6; --green:#3CFF9E; --amber:#FFB020; --dim:#5b6b78; --panel:#11161c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 "Noto Sans JP","Microsoft YaHei",sans-serif; display:flex; flex-direction:column; height:100vh; }
+  header { padding:10px 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #1d252e; }
+  header .time { font:20px monospace; color:var(--green); min-width:150px; }
+  button { background:var(--panel); color:var(--fg); border:1px solid #2a3540; padding:5px 10px; border-radius:4px; cursor:pointer; font:inherit; }
+  button:hover, button:focus-visible { border-color:var(--green); outline:none; }
+  button.primary { background:var(--amber); color:#000; border-color:var(--amber); }
+  #status { color:var(--dim); }
+  #status.dirty { color:var(--amber); }
+  #now { text-align:center; padding:14px; min-height:96px; }
+  #now .ja { font-size:34px; }
+  #now .zh { color:var(--dim); font-size:18px; }
+  canvas { width:100%; height:120px; display:block; background:#080b0f; cursor:pointer; }
+  main { flex:1; overflow:auto; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:4px 8px; border-bottom:1px solid #141a20; white-space:nowrap; }
+  td.text { white-space:normal; width:100%; }
+  td.text small { color:var(--dim); margin-left:8px; }
+  tr.sel { background:#1a2530; outline:1px solid var(--amber); }
+  tr.playing td.text { color:var(--amber); }
+  tr.changed td.t { color:var(--amber); }
+  td.t { font-family:monospace; color:var(--green); }
+  td.d { font-family:monospace; color:var(--dim); }
+  td button { padding:2px 6px; font-size:12px; }
+  .help { color:var(--dim); font-size:12px; padding:6px 16px; border-top:1px solid #1d252e; }
+  kbd { background:#1d252e; padding:0 4px; border-radius:3px; font-family:monospace; }
+</style>
+</head>
+<body>
+<header>
+  <button id="play" aria-label="播放/暂停">▶ 播放</button>
+  <span class="time" id="time">0:00.000</span>
+  <label>速度
+    <select id="rate"><option>0.5</option><option>0.75</option><option selected>1</option></select>
+  </label>
+  <label><input type="checkbox" id="metro"> 节拍器</label>
+  <label><input type="checkbox" id="follow" checked> 列表跟随播放</label>
+  <button id="undo">撤销 (Ctrl+Z)</button>
+  <button id="save" class="primary">保存 (Ctrl+S)</button>
+  <span id="status">已加载</span>
+</header>
+<div id="now"><div class="ja">&nbsp;</div><div class="zh">&nbsp;</div></div>
+<canvas id="tl" width="1800" height="120" aria-label="时间轴：点击跳转，拖动歌词块起点可调整"></canvas>
+<main><table><tbody id="rows"></tbody></table></main>
+<div class="help">
+  <kbd>空格</kbd> 播放/暂停 · <kbd>↑↓</kbd> 选句 · <kbd>Enter</kbd> 从选中句前 1 秒播放 ·
+  <kbd>T</kbd> 把选中句起点设为当前播放位置并跳到下一句（边听边打点） ·
+  <kbd>[</kbd><kbd>]</kbd> ±10ms，<kbd>Shift</kbd>+<kbd>[</kbd><kbd>]</kbd> ±50ms ·
+  <kbd>B</kbd> 吸附到最近拍 · <kbd>←→</kbd> 播放位置 ±1 秒 · 时间轴上可拖动琥珀色起点线
+</div>
+<audio id="audio" src="/audio" preload="auto"></audio>
+<script>
+const audio = document.getElementById('audio');
+const rowsEl = document.getElementById('rows');
+const cv = document.getElementById('tl'), ctx = cv.getContext('2d');
+let lines = [], orig = [], beats = [], downbeats = [], energy = [];
+let sel = 0, history = [], dirty = false, lastBeatClick = -1;
+const WINDOW = 8; // seconds visible on timeline
+
+const fmt = s => { const m = Math.floor(s / 60); return `${m}:${(s - m * 60).toFixed(3).padStart(6, '0')}`; };
+const curIdx = t => { let k = -1; for (let i = 0; i < lines.length; i++) if (lines[i].start <= t) k = i; return k; };
+
+async function load() {
+  const [ly, an] = await Promise.all([fetch('/lyrics.json').then(r => r.json()), fetch('/analysis.json').then(r => r.json())]);
+  lines = ly.lines.map(l => ({ ...l }));
+  orig = lines.map(l => l.start);
+  beats = an.beats; downbeats = an.downbeats || []; energy = an.beatEnergy || [];
+  render(); requestAnimationFrame(tick);
+}
+
+function snapshot() { history.push(lines.map(l => l.start)); if (history.length > 200) history.shift(); }
+function markDirty() { dirty = true; const s = document.getElementById('status'); s.textContent = '有未保存的修改'; s.className = 'dirty'; }
+function setStart(i, t) {
+  snapshot();
+  lines[i].start = Math.max(0, Math.round(t * 1000) / 1000);
+  markDirty(); render();
+}
+
+function render() {
+  rowsEl.innerHTML = '';
+  lines.forEach((l, i) => {
+    const tr = document.createElement('tr');
+    tr.className = (i === sel ? 'sel ' : '') + (Math.abs(l.start - orig[i]) > 1e-4 ? 'changed' : '');
+    const delta = l.start - orig[i];
+    tr.innerHTML = `<td class="d">${i}</td><td class="t">${fmt(l.start)}</td>
+      <td class="d">${Math.abs(delta) > 1e-4 ? (delta > 0 ? '+' : '') + delta.toFixed(3) : ''}</td>
+      <td><button data-a="-50">-50</button><button data-a="-10">-10</button><button data-a="10">+10</button><button data-a="50">+50</button>
+          <button data-a="now" title="设为当前播放位置">●当前</button><button data-a="beat" title="吸附到最近拍">拍</button><button data-a="play" title="从这句前 1 秒播放">▶</button></td>
+      <td class="text">${l.text}<small>${l.zh || ''}</small></td>`;
+    tr.onclick = e => {
+      sel = i;
+      const a = e.target.dataset.a;
+      if (a === 'now') setStart(i, audio.currentTime);
+      else if (a === 'beat') snapBeat(i);
+      else if (a === 'play') playFrom(i);
+      else if (a) setStart(i, l.start + Number(a) / 1000);
+      else render();
+    };
+    rowsEl.appendChild(tr);
+  });
+}
+
+function snapBeat(i) {
+  const t = lines[i].start;
+  let best = beats[0];
+  for (const b of beats) if (Math.abs(b - t) < Math.abs(best - t)) best = b;
+  setStart(i, best);
+}
+function playFrom(i) { audio.currentTime = Math.max(0, lines[i].start - 1); audio.play(); }
+function scrollSel() { rowsEl.children[sel]?.scrollIntoView({ block: 'center' }); }
+
+// ---- timeline ----
+let drag = -1;
+const t0 = () => audio.currentTime - WINDOW / 2;
+const xOf = t => (t - t0()) / WINDOW * cv.width;
+const tOf = x => t0() + x / cv.width * WINDOW;
+function canvasX(e) { const r = cv.getBoundingClientRect(); return (e.clientX - r.left) / r.width * cv.width; }
+
+cv.onmousedown = e => {
+  const x = canvasX(e);
+  drag = lines.findIndex(l => Math.abs(xOf(l.start) - x) < 8);
+  if (drag >= 0) { sel = drag; snapshot(); render(); }
+  else audio.currentTime = Math.max(0, tOf(x));
+};
+window.onmousemove = e => {
+  if (drag < 0) return;
+  lines[drag].start = Math.max(0, Math.round(tOf(canvasX(e)) * 1000) / 1000);
+  markDirty();
+};
+window.onmouseup = () => { if (drag >= 0) { drag = -1; render(); } };
+
+function drawTimeline() {
+  const W = cv.width, H = cv.height;
+  ctx.fillStyle = '#080b0f'; ctx.fillRect(0, 0, W, H);
+  const a = t0(), b = a + WINDOW;
+  beats.forEach((bt, k) => {
+    if (bt < a || bt > b) return;
+    const x = xOf(bt), e = energy[k] ?? 0.5;
+    ctx.fillStyle = '#1f3a2e'; ctx.fillRect(x, 60 - e * 50, W / WINDOW * 0.3, e * 50);
+    ctx.fillStyle = downbeats.includes(bt) ? '#3CFF9E' : '#25313b';
+    ctx.fillRect(x, 0, downbeats.includes(bt) ? 2 : 1, 60);
+  });
+  lines.forEach((l, i) => {
+    const end = lines[i + 1]?.start ?? l.end;
+    if (end < a || l.start > b) return;
+    const x1 = xOf(l.start), x2 = xOf(end);
+    ctx.fillStyle = i === sel ? '#3a2c0c' : '#1a222b'; ctx.fillRect(x1, 66, x2 - x1 - 2, 50);
+    ctx.fillStyle = '#FFB020'; ctx.fillRect(x1, 62, 3, 58);
+    ctx.save(); ctx.beginPath(); ctx.rect(x1, 66, x2 - x1 - 4, 50); ctx.clip();
+    ctx.fillStyle = '#d8e0e6'; ctx.font = '22px "Noto Sans JP", sans-serif'; ctx.fillText(l.text, x1 + 8, 100);
+    ctx.restore();
+  });
+  ctx.fillStyle = '#fff'; ctx.fillRect(W / 2, 0, 2, H);
+}
+
+// ---- playback loop ----
+let lastIdx = -2;
+function tick() {
+  const t = audio.currentTime;
+  document.getElementById('time').textContent = fmt(t);
+  const k = curIdx(t);
+  if (k !== lastIdx) {
+    lastIdx = k;
+    const now = document.getElementById('now');
+    now.children[0].textContent = k >= 0 ? lines[k].text : ' ';
+    now.children[1].textContent = k >= 0 ? (lines[k].zh || '') : ' ';
+    [...rowsEl.children].forEach((r, i) => r.classList.toggle('playing', i === k));
+    if (document.getElementById('follow').checked && !audio.paused && k >= 0) rowsEl.children[k]?.scrollIntoView({ block: 'center' });
+  }
+  if (document.getElementById('metro').checked && !audio.paused) {
+    const bi = beats.findIndex(b => b > t) - 1;
+    if (bi >= 0 && bi !== lastBeatClick && t - beats[bi] < 0.05) { lastBeatClick = bi; click(downbeats.includes(beats[bi])); }
+  }
+  drawTimeline();
+  requestAnimationFrame(tick);
+}
+let actx;
+function click(strong) {
+  actx ??= new AudioContext();
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.frequency.value = strong ? 1600 : 1000; g.gain.setValueAtTime(0.15, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.05);
+  o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.06);
+}
+
+// ---- controls ----
+const playBtn = document.getElementById('play');
+const togglePlay = () => audio.paused ? audio.play() : audio.pause();
+playBtn.onclick = togglePlay;
+audio.onplay = () => playBtn.textContent = '❚❚ 暂停';
+audio.onpause = () => playBtn.textContent = '▶ 播放';
+document.getElementById('rate').onchange = e => audio.playbackRate = Number(e.target.value);
+document.getElementById('undo').onclick = undo;
+document.getElementById('save').onclick = save;
+
+function undo() {
+  const s = history.pop(); if (!s) return;
+  s.forEach((v, i) => lines[i].start = v); markDirty(); render();
+}
+async function save() {
+  const st = document.getElementById('status');
+  st.textContent = '保存中…';
+  const r = await fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines }) });
+  const j = await r.json();
+  if (j.ok) {
+    const ly = await fetch('/lyrics.json').then(r => r.json());
+    lines = ly.lines; orig = lines.map(l => l.start); history = []; dirty = false;
+    st.textContent = `已保存 ${j.count} 句 · ${new Date().toLocaleTimeString()}`; st.className = '';
+    render();
+  } else { st.textContent = '保存失败：' + j.error; st.className = 'dirty'; }
+}
+
+window.onkeydown = e => {
+  if (e.target.tagName === 'SELECT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
+  switch (e.key) {
+    case ' ': e.preventDefault(); togglePlay(); break;
+    case 'ArrowUp': e.preventDefault(); sel = Math.max(0, sel - 1); render(); scrollSel(); break;
+    case 'ArrowDown': e.preventDefault(); sel = Math.min(lines.length - 1, sel + 1); render(); scrollSel(); break;
+    case 'ArrowLeft': audio.currentTime = Math.max(0, audio.currentTime - 1); break;
+    case 'ArrowRight': audio.currentTime += 1; break;
+    case 'Enter': playFrom(sel); break;
+    case 't': case 'T': setStart(sel, audio.currentTime); sel = Math.min(lines.length - 1, sel + 1); render(); scrollSel(); break;
+    case 'b': case 'B': snapBeat(sel); break;
+    case '[': case '{': setStart(sel, lines[sel].start - (e.shiftKey ? 0.05 : 0.01)); break;
+    case ']': case '}': setStart(sel, lines[sel].start + (e.shiftKey ? 0.05 : 0.01)); break;
+  }
+};
+window.onbeforeunload = e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } };
+load();
+</script>
+</body>
+</html>

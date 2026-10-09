@@ -1,0 +1,68 @@
+[gen] CH03: ok
+[gen] CH01: ok
+[gen] CH04: ok
+[gen] CH02: ok
+[gen] CH05: ok
+[gen] CH-E1: ok
+[gen] CH-F1: ok
+[gen] CH-N1: ok
+[gen] CH-H1: ok
+[gen] CH-H2a: ok
+[gen] CH-H2b: ok
+[gen] OBJ01: ok
+[gen] OBJ04: ok
+[gen] OBJ05: ok
+[gen] OBJ06: ok
+[gen] CH-H3: ok
+[gen] OBJ02: ok
+[gen] OBJ07: ok
+[gen] OBJ08: ok
+[gen] OBJ09: ok
+[gen] OBJ10b: ok
+[gen] OBJ10a: ok
+[gen] OBJ10c: ok
+[gen] OBJ11: ok
+[gen] OBJ12: ok
+[gen] OBJ13: ok
+[gen] OBJ14: ok
+[gen] OBJ15: ok
+[gen] BG01b: ok
+[gen] BG04: ok
+[gen] BG02: ok
+[gen] BG03: ok
+[gen] BG05: ok
+[gen] BG06a: ok
+[gen] BG07: ok
+[gen] BG09: ok
+[gen] BG08: ok
+[gen] BG10: ok
+[gen] BG06b: ok
+[edit] BG07h: ok
+  reproportion CH01: result heads 6.02 (head kept 205px)  saved assets\components\CH01.png
+assets\components\CH01.png 1024x1324
+assets\components\CH02.png 1024x1536
+  reproportion CH03: result heads 6.02 (head kept 225px)  saved assets\components\CH03.png
+assets\components\CH03.png 1024x1420
+assets\components\CH04.png 1024x1536
+assets\components\CH05.png 1536x1024
+assets\components\CH-F1.png 840x1020
+assets\components\CH-H1.png 1536x1024
+assets\components\CH-H2a.png 1536x1024
+assets\components\CH-H2b.png 1536x1024
+assets\components\CH-H3.png 1536x1024
+assets\components\OBJ01.png 940x978
+assets\components\OBJ02.png 768x966
+assets\components\OBJ04.png 827x1469
+assets\components\OBJ06.png 1468x649
+assets\components\OBJ07.png 1536x932
+assets\components\OBJ08.png 540x1536
+assets\components\OBJ09.png 1490x637
+assets\components\OBJ10a.png 1011x973
+assets\components\OBJ10b.png 828x987
+assets\components\OBJ10c.png 881x743
+assets\components\OBJ11.png 475x939
+assets\components\OBJ12.png 843x1024
+assets\components\OBJ13.png 1475x607
+assets\components\OBJ14.png 865x798
+assets\components\OBJ15.png 872x457
+done
