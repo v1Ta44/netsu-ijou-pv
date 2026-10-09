@@ -1,6 +1,7 @@
 import { random } from "remotion";
 import features from "../../public/features.json";
 import lyricsJson from "../../public/lyrics.json";
+import ustJson from "../../public/ust_timing.json";
 
 // All scene code works in absolute song seconds. Narrator-layer motion is quantized
 // to the beat grid below; world-layer motion uses free noise.
@@ -71,17 +72,35 @@ export const featS = (name: FeatureName, t: number, win = 0.2) => {
 export const HITS = features.hits as [number, number][];
 
 // ---- lyrics ----
-export type Line = { i: number; start: number; end: number; text: string };
+// start/end: line slots from lyrics.json (cuts and scene motion key off these).
+// ls/le/chars: sung timing from the UTAU score (analysis/ust_align.py) that drives
+// what text is on screen: each character appears at its own sung onset.
+export type Line = { i: number; start: number; end: number; text: string; ls: number; le: number; chars: number[] };
 // Lines whose stored end runs through an instrumental get their sung end here.
 const SUNG_END: Record<number, number> = { 65: 87.54, 90: 131.5, 125: 228.55 };
-export const LINES: Line[] = (lyricsJson.lines as Line[]).map((l) => ({
-  i: l.i,
-  start: l.start,
-  end: SUNG_END[l.i] ?? l.end,
-  text: l.text,
-}));
+const RAW = lyricsJson.lines as { i: number; start: number; end: number; text: string }[];
+const UST = ustJson.lines as { i: number; start: number; chars: number[] }[];
+export const LINES: Line[] = RAW.map((l, k) => {
+  const end = SUNG_END[l.i] ?? l.end;
+  const nx = RAW[k + 1];
+  // a line that ran up to the next slot now runs up to the next sung onset
+  const le = nx && Math.abs(end - nx.start) < 1e-3 ? UST[k + 1].start : end;
+  return { i: l.i, start: l.start, end, text: l.text, ls: UST[k].start, le, chars: UST[k].chars };
+});
 export const L = (i: number) => LINES[i];
 export const lineAt = (t: number) => LINES.find((l) => t >= l.start && t < l.end);
+// Line whose text is on screen at t (sung timing).
+export const lyricAt = (t: number) => LINES.find((l) => t >= l.ls && t < l.le);
+// Characters of line li visible at t. Falls back to an even reveal when the text
+// was overridden and no longer matches the score.
+export const sungN = (t: number, li: number, len: number, span = 0.6) => {
+  const l = LINES[li];
+  if (!l || t < l.ls) return 0;
+  if (len !== l.chars.length) return Math.max(1, Math.min(len, Math.ceil(((t - l.ls) / Math.max(0.05, (l.le - l.ls) * span)) * len)));
+  let n = 0;
+  while (n < len && l.chars[n] <= t + 1e-4) n++;
+  return Math.max(1, n);
+};
 // Record number shown in the HUD: 1-based, last started line.
 export const recordNo = (t: number) => {
   let n = 0;

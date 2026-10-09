@@ -82,7 +82,7 @@ export const SceneF15: React.FC<{ t: number }> = ({ t }) => {
   }
   // ああ。: three characters land with the voice, then fade with it
   const ah = "ああ。";
-  const n = t < AH0 ? 0 : t < AH0 + 0.27 ? 1 : t < AH0 + 0.55 ? 2 : 3;
+  const n = t < AH0 ? 0 : t < AH0 + 0.328 ? 1 : t < AH0 + 0.6 ? 2 : 3; // UST: あ 132.131, あ 132.459
   // hard cut the moment the voice stops
   const ahOpacity = t >= AH0 && t < AH_END ? 1 : 0;
   return (

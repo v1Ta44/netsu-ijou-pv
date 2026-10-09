@@ -1,7 +1,6 @@
 import React from "react";
 import { MINCHO, paletteAt, WHITE } from "../lib/heat";
-import { LINES, rnd } from "../lib/time";
-import { revealN } from "../sys/sys";
+import { LINES, rnd, sungN } from "../lib/time";
 
 // Lyrics that take part in the chaos: every layout key re-rolls position, size,
 // direction and treatment. Text stays Mincho. Older lines linger as ghosts.
@@ -139,10 +138,10 @@ export const ChaosLyric: React.FC<{
   since?: number; // seconds since the layout changed: drives the entry snap
 }> = ({ t, li, layoutKey, heat, scale = 1, ghosts = 1, span = 0.55, allow, text, since = 1 }) => {
   const l = LINES[li];
-  if (!l || t < l.start) return null;
+  if (!l || t < l.ls) return null;
   const P = paletteAt(heat);
   const str = text ?? l.text;
-  const n = revealN(t, l.start, l.end, [...str].length, span);
+  const n = sungN(t, li, [...str].length, span);
   const pool = allow ?? [0, 0, 1, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 8];
   const seed = `ly${layoutKey}`;
   const L = LAYOUTS[pool[Math.floor(R(seed, "L") * pool.length)]];

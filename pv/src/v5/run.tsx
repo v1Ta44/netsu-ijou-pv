@@ -1,6 +1,6 @@
 import React from "react";
 import { heatAt } from "../lib/heat";
-import { beatPos, beatTime, FPS, LINES, lineAt, rnd } from "../lib/time";
+import { beatPos, beatTime, FPS, LINES, lyricAt, rnd } from "../lib/time";
 import { buildCuts, Cut, cutAt, CutPlayer, Render, Spec, Tier, TRANSITIONS } from "./engine";
 import { makeFillers } from "./filler";
 import { ChaosLyric } from "./lyrics";
@@ -55,16 +55,16 @@ export const makeRun = (d: RunDef) => {
   const Scene: React.FC<{ t: number }> = ({ t }) => {
     const c = cutAt(cuts, t);
     const heat = heatAt(t);
-    const l = lineAt(t);
+    const l = lyricAt(t);
     const lo = l ? d.lyric?.(l.i) : undefined;
     const showLy =
       l && l.i >= (d.lyricFrom ?? 0) && !lo?.hide && !(d.hideLyric && d.hideLyric(t)) && !(c && c.kind === "ins" && rnd(`hl${d.name}${c.k}`) < 0.5);
     let lk = { key: "", since: 1 };
     if (l) {
-      if (c && d.rep && d.rep(l.i)) lk = { key: `${d.name}c${c.k}`, since: t - c.s };
+      if (c && d.rep && d.rep(l.i)) lk = { key: `${d.name}c${c.k}`, since: t - Math.max(c.s, l.ls) };
       else {
         const b = Math.floor(beatPos(t) / holdBeats) * holdBeats;
-        lk = { key: `${d.name}b${b}`, since: t - Math.max(beatTime(b), l.start) };
+        lk = { key: `${d.name}b${b}`, since: t - Math.max(beatTime(b), l.ls) };
       }
     }
     const fl = flashAt(t);

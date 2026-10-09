@@ -37,11 +37,12 @@ export const Manuscript: React.FC<{
   <>
     {idx.map((li, k) => {
       const l = LINES[li];
-      if (t < l.start) return null;
-      const newer = idx.filter((j) => LINES[j].start <= t).length - 1 - k;
+      if (t < l.ls) return null;
+      const newer = idx.filter((j) => LINES[j].ls <= t).length - 1 - k;
       return (
         <Lyric
           key={li}
+          li={li}
           text={l.text}
           t={t}
           start={l.start}

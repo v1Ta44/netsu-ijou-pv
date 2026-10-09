@@ -1,6 +1,6 @@
 import React from "react";
 import { MINCHO, MONO, PIX8, RED, WHITE } from "../lib/heat";
-import { BEAT, clamp, FPS, LINES, noise, quant, rnd, steps } from "../lib/time";
+import { BEAT, clamp, FPS, LINES, noise, quant, rnd, steps, sungN } from "../lib/time";
 
 // System layer: hard-edged vector UI that belongs to the narrator.
 
@@ -376,8 +376,10 @@ export const Lyric: React.FC<
     seed?: string;
     opacity?: number;
     anchor?: "start" | "middle" | "end";
+    li?: number; // lyric line: reveal follows its sung per-character onsets
   }
 > = ({
+  li,
   text,
   t,
   start,
@@ -401,7 +403,7 @@ export const Lyric: React.FC<
   anchor = "start",
 }) => {
   const chars = [...text];
-  const n = instant ? chars.length : revealN(t, start, end, chars.length, span);
+  const n = instant ? chars.length : li !== undefined ? sungN(t, li, chars.length, span) : revealN(t, start, end, chars.length, span);
   const typing = n < chars.length && cursor;
   const k = Math.floor(t * 10);
   const tx = anchor === "middle" ? "translate(-50%,0)" : anchor === "end" ? "translate(-100%,0)" : "";
