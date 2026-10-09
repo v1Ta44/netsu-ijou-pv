@@ -3,6 +3,7 @@ import { Composition } from "remotion";
 import { Main, Probe } from "./Main";
 import { AlignPreview } from "./AlignPreview";
 import { CompTest } from "./CompTest";
+import { Cover } from "./Cover";
 import features from "../public/features.json";
 
 export const FPS = 30;
@@ -35,6 +36,7 @@ export const RemotionRoot: React.FC = () => (
       width={1920}
       height={1080}
     />
+    <Composition id="Cover" component={Cover} durationInFrames={1} fps={FPS} width={1920} height={1080} />
     <Composition id="CompTest" component={CompTest} durationInFrames={150} fps={FPS} width={1920} height={1080} />
   </>
 );

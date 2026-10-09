@@ -1,5 +1,9 @@
 # 熱異常 PV — fan-made
 
+![cover](docs/cover.jpg)
+
+成片见 [Releases](https://github.com/v1Ta44/netsu-ijou-pv/releases)。
+
 いよわ《熱異常》feat. 足立レイ 的非官方同人 PV 工程：AI 生图出素材 + [Remotion](https://www.remotion.dev/)（React）逐帧合成，节拍/段落由 librosa 分析驱动。风格为故障终端 + 终末氛围、模拟信号劣化。
 
 个人练习、非商用。
@@ -31,6 +35,7 @@ cd pv
 npm install
 npm run studio   # 预览
 npm run render   # 输出 pv/out/pv.mp4
+npx remotion still src/index.ts Cover out/cover.png   # 封面
 ```
 
 ## 许可
